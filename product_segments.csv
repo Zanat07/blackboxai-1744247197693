@@ -1,0 +1,11 @@
+ProductCategory,SubCategory,Revenue,ProfitMargin
+Electronics,Smartphones,45.2,18%
+Electronics,Laptops,32.7,15%
+Electronics,Accessories,12.5,22%
+Home,Appliances,28.4,12%
+Home,Furniture,15.3,25%
+Fashion,Men's Clothing,19.8,30%
+Fashion,Women's Clothing,22.1,28%
+Fashion,Footwear,8.7,35%
+Entertainment,Gaming,14.2,20%
+Entertainment,Streaming,9.5,40%
