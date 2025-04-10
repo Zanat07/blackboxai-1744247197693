@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import json
-import httpx
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from typing import List, Dict
@@ -19,6 +18,13 @@ app.add_middleware(
 # Load data
 with open('data.json') as f:
     data = json.load(f)
+
+# Update the data structure to include multiple companies
+companies_data = {
+    "Amazon": data['financial'],
+    "Apple": data['financial'],
+    # Add more companies as needed
+}
 
 # Initialize embedding model
 model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -48,14 +54,3 @@ async def query_financial_data(q: str, top_k: int = 3):
 async def get_all_data():
     """Get all financial data"""
     return data
-
-@app.post("/chat")
-async def post_to_aws(prompt: str):
-    """Send a prompt to the AWS service and return the response."""
-    payload = {"prompt": prompt}
-    async with httpx.AsyncClient() as client:
-        response = await client.post("https://83qvo7bbkb.execute-api.us-east-1.amazonaws.com/default/dav-dem-chatInvestmentAssistant", json=payload)
-        response_data = response.json()
-    
-    # Assuming the response contains a "chat_response" field
-    return {"chat_response": response_data.get("chat_response", "No response from service")}
