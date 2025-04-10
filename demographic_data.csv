@@ -1,0 +1,11 @@
+AgeGroup,Gender,Percentage,RevenueContribution
+18-24,Male,12%,8%
+18-24,Female,15%,10%
+25-34,Male,22%,25%
+25-34,Female,25%,28%
+35-44,Male,18%,20%
+35-44,Female,15%,17%
+45-54,Male,10%,12%
+45-54,Female,8%,10%
+55+,Male,5%,6%
+55+,Female,4%,5%
