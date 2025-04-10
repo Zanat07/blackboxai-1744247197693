@@ -1,0 +1,78 @@
+{
+  "companies": [
+    {
+      "name": "Company A",
+      "financial": [
+        {
+          "Date": "2023-01-01",
+          "StockPrice": "85.14",
+          "Revenue": "127.1",
+          "NetIncome": "2.75",
+          "ROI": "8.2",
+          "MarketCap": "875.4"
+        }
+      ],
+      "geographic": [
+        {
+          "Region": "North America",
+          "Country": "United States",
+          "Revenue": "85.2",
+          "MarketShare": "42%"
+        }
+      ],
+      "demographic": [
+        {
+          "AgeGroup": "18-24",
+          "Gender": "Male",
+          "Percentage": "12%",
+          "RevenueContribution": "8%"
+        }
+      ],
+      "product_segments": [
+        {
+          "ProductCategory": "Electronics",
+          "SubCategory": "Smartphones",
+          "Revenue": "45.2",
+          "ProfitMargin": "18%"
+        }
+      ]
+    },
+    {
+      "name": "Company B",
+      "financial": [
+        {
+          "Date": "2023-01-01",
+          "StockPrice": "90.00",
+          "Revenue": "150.0",
+          "NetIncome": "3.0",
+          "ROI": "9.0",
+          "MarketCap": "900.0"
+        }
+      ],
+      "geographic": [
+        {
+          "Region": "Europe",
+          "Country": "Germany",
+          "Revenue": "50.0",
+          "MarketShare": "10%"
+        }
+      ],
+      "demographic": [
+        {
+          "AgeGroup": "25-34",
+          "Gender": "Female",
+          "Percentage": "20%",
+          "RevenueContribution": "15%"
+        }
+      ],
+      "product_segments": [
+        {
+          "ProductCategory": "Fashion",
+          "SubCategory": "Women's Clothing",
+          "Revenue": "30.0",
+          "ProfitMargin": "25%"
+        }
+      ]
+    }
+  ]
+}
