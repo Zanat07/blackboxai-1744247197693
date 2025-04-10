@@ -2,10 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const url = require('url');
-
 const server = http.createServer((req, res) => {
-    const parsedUrl = url.parse(req.url, true);
   // Serve files from current working directory
   const baseDir = process.cwd();
   let filePath = path.join(baseDir, req.url.replace(/^\//, ''));
