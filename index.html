@@ -6,23 +6,25 @@
     <title>Chatbot Interface</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="flex h-screen">
-    <div class="w-1/2 p-4 bg-gray-100">
-        <h1 class="text-2xl font-bold mb-4">Chatbot</h1>
-        <div id="chat" class="h-4/5 overflow-y-auto border border-gray-300 p-2"></div>
-        <input id="userInput" type="text" class="w-full p-2 border border-gray-300" placeholder="Escribe tu pregunta...">
-        <button id="sendButton" class="w-full bg-blue-500 text-white p-2 mt-2">Enviar</button>
+<body class="flex flex-col md:flex-row h-screen bg-gray-200">
+    <div class="w-full md:w-1/2 p-4 bg-gray-100 shadow-lg">
+        <h1 class="text-3xl font-bold mb-4 text-center">Chatbot</h1>
+        <div id="chat" class="h-4/5 overflow-y-auto border border-gray-300 p-2 rounded-lg bg-white"></div>
+        <div class="flex mt-2">
+            <input id="userInput" type="text" class="flex-grow p-2 border border-gray-300 rounded-l-lg" placeholder="Escribe tu pregunta...">
+            <button id="sendButton" class="bg-blue-500 text-white p-2 rounded-r-lg hover:bg-blue-600 transition duration-200">Enviar</button>
+        </div>
     </div>
-    <div class="w-1/2 p-4 bg-white">
-        <h2 class="text-xl font-bold mb-4">Tableros Generados</h2>
-        <div id="dashboard" class="border border-gray-300 p-2 h-full"></div>
+    <div class="w-full md:w-1/2 p-4 bg-white shadow-lg">
+        <h2 class="text-2xl font-bold mb-4 text-center">Tableros Generados</h2>
+        <div id="dashboard" class="border border-gray-300 p-2 h-full rounded-lg bg-gray-50"></div>
     </div>
     <script>
         document.getElementById('sendButton').onclick = async function() {
             const userInput = document.getElementById('userInput').value;
             const response = await fetch(`http://localhost:8000/query?q=${userInput}`);
             const data = await response.json();
-            document.getElementById('chat').innerHTML += `<div>${data.query}: ${JSON.stringify(data.results)}</div>`;
+            document.getElementById('chat').innerHTML += `<div class="mb-2"><strong>${data.query}:</strong> ${JSON.stringify(data.results)}</div>`;
             document.getElementById('userInput').value = '';
         };
     </script>
