@@ -19,6 +19,13 @@ app.add_middleware(
 with open('data.json') as f:
     data = json.load(f)
 
+# Update the data structure to include multiple companies
+companies_data = {
+    "Amazon": data['financial'],
+    "Apple": data['financial'],
+    # Add more companies as needed
+}
+
 # Initialize embedding model
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
