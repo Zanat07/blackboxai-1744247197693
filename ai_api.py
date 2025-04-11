@@ -1,11 +1,14 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+import httpx
 import json
-from sentence_transformers import SentenceTransformer
-import numpy as np
-from typing import List, Dict
+from typing import Dict
 
 app = FastAPI()
+
+# Configurar puerto
+import os
+PORT = int(os.getenv("PORT", 8001))
 
 # Allow CORS
 app.add_middleware(
@@ -15,42 +18,41 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load data
-with open('data.json') as f:
-    data = json.load(f)
+API_URL = "https://83qvo7bbkb.execute-api.us-east-1.amazonaws.com/default/dav-dem-chatInvestmentAssistant"
 
-# Update the data structure to include multiple companies
-companies_data = {
-    "Amazon": data['financial'],
-    "Apple": data['financial'],
-    # Add more companies as needed
-}
-
-# Initialize embedding model
-model = SentenceTransformer('all-MiniLM-L6-v2')
-
-# Pre-embed financial data
-financial_embeddings = []
-for record in data['financial']:
-    text = f"On {record['Date']}, stock price was {record['StockPrice']}, revenue was {record['Revenue']}, net income was {record['NetIncome']}, ROI was {record['ROI']}%, market cap was {record['MarketCap']}"
-    embedding = model.encode(text)
-    financial_embeddings.append(embedding)
-financial_embeddings = np.array(financial_embeddings)
-
-@app.get("/query")
-async def query_financial_data(q: str, top_k: int = 3):
-    """Query financial data using semantic search"""
-    query_embedding = model.encode(q)
-    similarities = np.dot(financial_embeddings, query_embedding)
-    top_indices = np.argsort(similarities)[-top_k:][::-1]
+@app.post("/query")
+async def query_chatbot(request: Request):
+    """Query the external chatbot API"""
+    body = await request.json()
+    prompt = body.get("prompt", "")
     
-    results = []
-    for idx in top_indices:
-        results.append(data['financial'][idx])
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            API_URL,
+            json={"prompt": prompt},
+            timeout=30.0
+        )
     
-    return {"query": q, "results": results}
+    if response.status_code != 200:
+        return {"error": "Failed to get response from chatbot API"}
+    
+    return response.json()
 
-@app.get("/data")
-async def get_all_data():
-    """Get all financial data"""
-    return data
+@app.get("/")
+async def root():
+    """Root endpoint that redirects to health check"""
+    return {"status": "ok", "message": "Chat Investment Assistant API"}
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {"status": "ok"}
+
+@app.get("/favicon.ico")
+async def favicon():
+    """Empty favicon response to prevent 404 errors"""
+    return Response(status_code=204)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=PORT)

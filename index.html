@@ -5,29 +5,384 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chatbot Interface</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#CC222B',
+                        'primary-light': '#E03A3E',
+                        'primary-dark': '#A51C30',
+                        secondary: '#F8F8F8',
+                        accent: '#4A4A4A'
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body class="flex flex-col md:flex-row h-screen bg-gray-200">
-    <div class="w-full md:w-1/2 p-4 bg-gray-100 shadow-lg">
-        <h1 class="text-3xl font-bold mb-4 text-center">Chatbot</h1>
-        <div id="chat" class="h-4/5 overflow-y-auto border border-gray-300 p-2 rounded-lg bg-white"></div>
-        <div class="flex mt-2">
-            <input id="userInput" type="text" class="flex-grow p-2 border border-gray-300 rounded-l-lg" placeholder="Escribe tu pregunta...">
-            <button id="sendButton" class="bg-blue-500 text-white p-2 rounded-r-lg hover:bg-blue-600 transition duration-200">Enviar</button>
+<body class="flex flex-col h-screen bg-secondary">
+    <div class="w-full p-4 bg-white shadow-lg">
+        <h1 class="text-3xl font-bold mb-4 text-center text-primary">Asistente Financiero</h1>
+        <div id="chat" class="h-4/5 overflow-y-auto border border-gray-200 p-4 rounded-lg bg-secondary"></div>
+        <div class="flex mt-4">
+            <input id="userInput" type="text" class="flex-grow p-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Escribe tu consulta financiera...">
+            <button id="sendButton" class="bg-primary text-white px-6 rounded-r-lg hover:bg-primary-dark transition duration-300 flex items-center">
+                <span>Enviar</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+            </button>
         </div>
     </div>
-    <div class="w-full md:w-1/2 p-4 bg-white shadow-lg">
-        <h2 class="text-2xl font-bold mb-4 text-center">Tableros Generados</h2>
-        <div id="dashboard" class="border border-gray-300 p-2 h-full rounded-lg bg-gray-50"></div>
+    <div id="dashboardContainer" class="hidden w-full p-4 bg-white shadow-lg border-t-2 border-primary-light">
+        <h2 class="text-2xl font-bold mb-4 text-center text-primary">Análisis Financiero</h2>
+        <div id="dashboard" class="border border-gray-200 p-4 h-full rounded-lg bg-secondary"></div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <script>
+        // Country coordinates lookup
+        const countryCoordinates = {
+            'Estados Unidos': { lat: 37.0902, lng: -95.7129 },
+            'México': { lat: 23.6345, lng: -102.5528 },
+            'Brasil': { lat: -14.2350, lng: -51.9253 },
+            'España': { lat: 40.4637, lng: -3.7492 },
+            'Alemania': { lat: 51.1657, lng: 10.4515 },
+            'China': { lat: 35.8617, lng: 104.1954 },
+            'Japón': { lat: 36.2048, lng: 138.2529 }
+        };
+
         document.getElementById('sendButton').onclick = async function() {
             const userInput = document.getElementById('userInput').value;
-            const response = await fetch(`http://localhost:8000/query?q=${userInput}`);
-            const data = await response.json();
-            document.getElementById('chat').innerHTML += `<div class="mb-2"><strong>${data.query}:</strong> ${JSON.stringify(data.results)}</div>`;
+            if (!userInput.trim()) return;
+            
+            // Mostrar mensaje del usuario
+            document.getElementById('chat').innerHTML += `
+                <div class="flex justify-end mb-2">
+                    <div class="max-w-xs md:max-w-md bg-primary text-white rounded-lg px-4 py-2 shadow">
+                        ${userInput}
+                    </div>
+                </div>`;
+            
             document.getElementById('userInput').value = '';
+            
+            // Mostrar mensaje de carga
+            document.getElementById('chat').innerHTML += `
+                <div class="flex justify-start mb-2">
+                    <div class="max-w-xs md:max-w-md bg-gray-100 text-accent rounded-lg px-4 py-2 border border-gray-200">
+                        Analizando datos...
+                    </div>
+                </div>`;
+            
+            try {
+                const response = await fetch('http://localhost:8001/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ prompt: userInput })
+                });
+                const data = await response.json();
+                
+                // Remover mensaje de carga
+                document.getElementById('chat').lastElementChild.remove();
+                
+                // Mostrar respuesta formateada
+                document.getElementById('chat').innerHTML += `
+                    <div class="flex justify-start mb-2">
+                        <div class="max-w-xs md:max-w-md bg-white text-accent rounded-lg px-4 py-2 whitespace-pre-line border border-gray-200 shadow-sm">
+                            ${data.chat_response.replace(/\n/g, '<br>')}
+                        </div>
+                    </div>`;
+                
+                // Mostrar dashboards si hay datos financieros
+                if (data.financial && data.financial.length > 0) {
+                    if (!firstInteraction) {
+                        showDashboards();
+                    }
+                    renderDashboards(data);
+                }
+            } catch (error) {
+                document.getElementById('chat').lastElementChild.remove();
+                document.getElementById('chat').innerHTML += `
+                    <div class="flex justify-start mb-2">
+                        <div class="max-w-xs md:max-w-md bg-red-50 text-red-700 rounded-lg px-4 py-2 border border-red-200">
+                            Error al obtener los datos. Por favor intenta nuevamente.
+                        </div>
+                    </div>`;
+                console.error("Error:", error);
+            }
         };
+
+        let firstInteraction = false;
+        let currentMap = null;
+        
+        function showDashboards() {
+            document.body.classList.add('md:flex-row');
+            document.getElementById('chat').parentElement.classList.add('md:w-1/2');
+            document.getElementById('dashboardContainer').classList.remove('hidden');
+            document.getElementById('dashboardContainer').classList.add('md:w-1/2');
+            firstInteraction = true;
+        }
+
+        function renderDashboards(data) {
+            const dashboard = document.getElementById('dashboard');
+            dashboard.innerHTML = `
+                <div class="grid grid-cols-1 gap-6">
+                    <!-- Financial Metrics Section -->
+                    <div>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold text-primary">Métricas Financieras</h3>
+                            <div class="flex items-center">
+                                <label for="dateFilter" class="mr-2 text-sm font-medium text-gray-700">Filtrar por fecha:</label>
+                                <select id="dateFilter" class="bg-white border border-gray-300 text-gray-700 py-1 px-2 rounded focus:ring-primary focus:border-primary">
+                                    <option value="all">Todas las fechas</option>
+                                    ${data.financial.map(item => `<option value="${item.Date}">${item.Date}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            ${data.financial.slice(0,1).map(item => `
+                                <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <h4 class="text-sm font-medium text-gray-500">Precio de Acción</h4>
+                                            <p class="text-2xl font-bold text-primary">$${item.StockPrice}</p>
+                                        </div>
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">+2.5%</span>
+                                    </div>
+                                </div>
+                                <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <h4 class="text-sm font-medium text-gray-500">Ingresos</h4>
+                                            <p class="text-2xl font-bold text-primary">$${item.Revenue}B</p>
+                                        </div>
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">+5.1%</span>
+                                    </div>
+                                </div>
+                                <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <h4 class="text-sm font-medium text-gray-500">ROI</h4>
+                                            <p class="text-2xl font-bold text-primary">${item.ROI}%</p>
+                                        </div>
+                                        <span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">+0.8%</span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
+                                <h4 class="font-semibold mb-3 text-primary-dark">Evolución de Acciones</h4>
+                                <canvas id="stockChart" height="200"></canvas>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
+                                <h4 class="font-semibold mb-3 text-primary-dark">Tendencias de Ingresos</h4>
+                                <canvas id="revenueChart" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Geographic Section -->
+                    <div>
+                        <h3 class="text-xl font-bold mb-4 text-primary">Distribución Geográfica</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
+                                <h4 class="font-semibold mb-3 text-primary-dark">Por Regiones</h4>
+                                <canvas id="regionChart" height="300"></canvas>
+                            </div>
+                            <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
+                                <h4 class="font-semibold mb-3 text-primary-dark">Por Países</h4>
+                                <div id="mapContainer" class="h-64"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Segments Section -->
+                    <div class="mt-8">
+                        <h3 class="text-xl font-bold mb-6 text-primary border-b pb-2">Segmentos de Producto</h3>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex flex-col">
+                                <h4 class="font-semibold mb-4 text-primary-dark text-lg">Ingresos por Categoría ($M)</h4>
+                                <div class="flex-grow">
+                                    <canvas id="productRevenueChart" class="w-full h-[300px]"></canvas>
+                                </div>
+                            </div>
+                            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex flex-col">
+                                <h4 class="font-semibold mb-4 text-primary-dark text-lg">Margen por Subcategoría (%)</h4>
+                                <div class="flex-grow">
+                                    <canvas id="productMarginChart" class="w-full h-[300px]"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+
+            // Create charts
+            createFinancialCharts(data);
+            createMapVisualization(data);
+            createProductCharts(data);
+            setupDateFilter(data);
+        }
+
+        function createFinancialCharts(data) {
+            // Stock Price Chart
+            new Chart(document.getElementById('stockChart'), {
+                type: 'line',
+                data: {
+                    labels: data.financial.map(item => item.Date),
+                    datasets: [{
+                        label: 'Precio ($)',
+                        data: data.financial.map(item => item.StockPrice),
+                        borderColor: '#CC222B',
+                        backgroundColor: 'rgba(204, 34, 43, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1
+                    }]
+                }
+            });
+
+            // Revenue Chart
+            new Chart(document.getElementById('revenueChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.financial.map(item => item.Date),
+                    datasets: [{
+                        label: 'Ingresos ($B)',
+                        data: data.financial.map(item => item.Revenue),
+                        backgroundColor: 'rgba(204, 34, 43, 0.6)',
+                        borderColor: '#A51C30',
+                        borderWidth: 1
+                    }]
+                }
+            });
+
+            // Region Distribution Chart
+            new Chart(document.getElementById('regionChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: data.geographic.map(item => item.Region),
+                    datasets: [{
+                        data: data.geographic.map(item => item.Revenue),
+                        backgroundColor: [
+                            '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
+                            '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'
+                        ]
+                    }]
+                }
+            });
+        }
+
+        function createMapVisualization(data) {
+            // Remove existing map if it exists
+            if (currentMap) {
+                currentMap.remove();
+            }
+
+            // Create new map
+            currentMap = L.map('mapContainer').setView([20, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(currentMap);
+
+            // Add markers for each country
+            data.geographic.forEach(item => {
+                const coords = countryCoordinates[item.Country] || { 
+                    lat: 20 + Math.random() * 40 - 20, 
+                    lng: Math.random() * 120 - 60 
+                };
+                
+                L.circleMarker([coords.lat, coords.lng], {
+                    radius: Math.log(parseFloat(item.Revenue)) * 2,
+                    fillColor: '#CC222B',
+                    color: '#A51C30',
+                    weight: 1,
+                    fillOpacity: 0.8
+                }).bindPopup(`<b>${item.Country}</b><br>Ingresos: $${item.Revenue}M`).addTo(currentMap);
+            });
+        }
+
+        function createProductCharts(data) {
+            // Group revenue by product category
+            const revenueByCategory = {};
+            data.product_segments.forEach(item => {
+                if (!revenueByCategory[item.ProductCategory]) {
+                    revenueByCategory[item.ProductCategory] = 0;
+                }
+                revenueByCategory[item.ProductCategory] += parseFloat(item.Revenue);
+            });
+
+            // Revenue by Category Chart
+            new Chart(document.getElementById('productRevenueChart'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(revenueByCategory),
+                    datasets: [{
+                        label: 'Ingresos ($M)',
+                        data: Object.values(revenueByCategory),
+                        backgroundColor: '#CC222B',
+                        borderColor: '#A51C30',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Ingresos ($M)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Profit Margin by Subcategory Chart
+            new Chart(document.getElementById('productMarginChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.product_segments.map(item => item.SubCategory),
+                    datasets: [{
+                        label: 'Margen (%)',
+                        data: data.product_segments.map(item => parseFloat(item.ProfitMargin)),
+                        backgroundColor: '#4BC0C0',
+                        borderColor: '#3AA3A3',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Margen (%)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function setupDateFilter(data) {
+            document.getElementById('dateFilter').addEventListener('change', function() {
+                const selectedDate = this.value;
+                if (selectedDate === 'all') {
+                    renderDashboards(data);
+                } else {
+                    const filteredData = JSON.parse(JSON.stringify(data));
+                    filteredData.financial = data.financial.filter(item => item.Date === selectedDate);
+                    renderDashboards(filteredData);
+                }
+            });
+        }
     </script>
 </body>
 </html>
-</create_file>
