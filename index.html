@@ -37,21 +37,25 @@
     </div>
     <div id="dashboardContainer" class="hidden w-full p-4 bg-white shadow-lg border-t-2 border-primary-light">
         <h2 class="text-2xl font-bold mb-4 text-center text-primary">Análisis Financiero</h2>
-        <div id="dashboard" class="border border-gray-200 p-4 h-full rounded-lg bg-secondary"></div>
+        <div id="dashboard" class="border border-gray-200 p-4 min-h-[800px] rounded-lg bg-secondary overflow-y-auto"></div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <script>
-        // Country coordinates lookup
+        // Country coordinates lookup (using English names to match service data)
         const countryCoordinates = {
-            'Estados Unidos': { lat: 37.0902, lng: -95.7129 },
-            'México': { lat: 23.6345, lng: -102.5528 },
-            'Brasil': { lat: -14.2350, lng: -51.9253 },
-            'España': { lat: 40.4637, lng: -3.7492 },
-            'Alemania': { lat: 51.1657, lng: 10.4515 },
+            'United States': { lat: 37.0902, lng: -95.7129 },
+            'Canada': { lat: 56.1304, lng: -106.3468 },
+            'United Kingdom': { lat: 55.3781, lng: -3.4360 },
+            'Germany': { lat: 51.1657, lng: 10.4515 },
+            'France': { lat: 46.2276, lng: 2.2137 },
             'China': { lat: 35.8617, lng: 104.1954 },
-            'Japón': { lat: 36.2048, lng: 138.2529 }
+            'Japan': { lat: 36.2048, lng: 138.2529 },
+            'Brazil': { lat: -14.2350, lng: -51.9253 },
+            'Australia': { lat: -25.2744, lng: 133.7751 },
+            'South Africa': { lat: -30.5595, lng: 22.9375 }
         };
 
         document.getElementById('sendButton').onclick = async function() {
@@ -203,6 +207,25 @@
                         </div>
                     </div>
 
+                    <!-- Demographic Analysis Section -->
+                    <div class="mt-8">
+                        <h3 class="text-xl font-bold mb-6 text-primary border-b pb-2">Análisis Demográfico</h3>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex flex-col">
+                                <h4 class="font-semibold mb-4 text-primary-dark text-lg">Distribución por Edad y Género</h4>
+                                <div class="flex-grow">
+                                    <canvas id="demographicChart" class="w-full h-[300px]"></canvas>
+                                </div>
+                            </div>
+                            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex flex-col">
+                                <h4 class="font-semibold mb-4 text-primary-dark text-lg">Contribución a Ingresos</h4>
+                                <div class="flex-grow">
+                                    <canvas id="revenueContributionChart" class="w-full h-[300px]"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Product Segments Section -->
                     <div class="mt-8">
                         <h3 class="text-xl font-bold mb-6 text-primary border-b pb-2">Segmentos de Producto</h3>
@@ -225,85 +248,113 @@
 
             // Create charts
             createFinancialCharts(data);
-            createMapVisualization(data);
+            createRevenueVisualization(data);
             createProductCharts(data);
+            createDemographicCharts(data);
             setupDateFilter(data);
         }
 
-        function createFinancialCharts(data) {
-            // Stock Price Chart
-            new Chart(document.getElementById('stockChart'), {
-                type: 'line',
-                data: {
-                    labels: data.financial.map(item => item.Date),
-                    datasets: [{
-                        label: 'Precio ($)',
-                        data: data.financial.map(item => item.StockPrice),
-                        borderColor: '#CC222B',
-                        backgroundColor: 'rgba(204, 34, 43, 0.1)',
-                        borderWidth: 2,
-                        tension: 0.1
-                    }]
-                }
+
+        function createRevenueVisualization(data) {
+            const container = document.getElementById('mapContainer');
+            container.innerHTML = `
+                <div class="bg-white p-4 rounded-xl shadow-md border border-gray-100">
+                    <h4 class="font-semibold mb-3 text-primary-dark">Intensidad de Ingresos por País</h4>
+                    <div id="worldMap" style="height: 300px;"></div>
+                </div>
+            `;
+
+            // Create map centered on world view
+            const map = L.map('worldMap').setView([20, 0], 2);
+            
+            // Add tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+
+            // Prepare heatmap data
+            const heatData = data.geographic.map(item => {
+                const coords = countryCoordinates[item.Country] || { lat: 0, lng: 0 };
+                const intensity = parseFloat(item.Revenue) / 100; // Normalize for better visualization
+                return [coords.lat, coords.lng, intensity];
             });
 
-            // Revenue Chart
-            new Chart(document.getElementById('revenueChart'), {
-                type: 'bar',
-                data: {
-                    labels: data.financial.map(item => item.Date),
-                    datasets: [{
-                        label: 'Ingresos ($B)',
-                        data: data.financial.map(item => item.Revenue),
-                        backgroundColor: 'rgba(204, 34, 43, 0.6)',
-                        borderColor: '#A51C30',
-                        borderWidth: 1
-                    }]
-                }
-            });
+            // Add heatmap layer
+            L.heatLayer(heatData, {
+                radius: 25,
+                blur: 15,
+                maxZoom: 17,
+                gradient: {0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1.0: 'red'}
+            }).addTo(map);
 
-            // Region Distribution Chart
-            new Chart(document.getElementById('regionChart'), {
-                type: 'doughnut',
-                data: {
-                    labels: data.geographic.map(item => item.Region),
-                    datasets: [{
-                        data: data.geographic.map(item => item.Revenue),
-                        backgroundColor: [
-                            '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
-                            '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'
-                        ]
-                    }]
+            // Add country markers with revenue info
+            data.geographic.forEach(item => {
+                const coords = countryCoordinates[item.Country];
+                if (coords) {
+                    L.marker([coords.lat, coords.lng])
+                        .bindPopup(`<b>${item.Country}</b><br>Ingresos: $${item.Revenue}M`)
+                        .addTo(map);
                 }
             });
         }
 
-        function createMapVisualization(data) {
-            // Remove existing map if it exists
-            if (currentMap) {
-                currentMap.remove();
-            }
+        function createDemographicCharts(data) {
+            // Prepare data for demographic charts
+            const ageGroups = [...new Set(data.demographic.map(item => item.AgeGroup))];
+            const genders = [...new Set(data.demographic.map(item => item.Gender))];
+            
+            // Distribution by Age and Gender Chart
+            new Chart(document.getElementById('demographicChart'), {
+                type: 'bar',
+                data: {
+                    labels: ageGroups,
+                    datasets: genders.map(gender => ({
+                        label: gender,
+                        data: data.demographic
+                            .filter(item => item.Gender === gender)
+                            .map(item => parseFloat(item.Percentage.replace('%', ''))),
+                        backgroundColor: gender === 'Male' ? '#3B82F6' : '#EC4899'
+                    }))
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Porcentaje (%)'
+                            }
+                        }
+                    }
+                }
+            });
 
-            // Create new map
-            currentMap = L.map('mapContainer').setView([20, 0], 2);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(currentMap);
-
-            // Add markers for each country
-            data.geographic.forEach(item => {
-                const coords = countryCoordinates[item.Country] || { 
-                    lat: 20 + Math.random() * 40 - 20, 
-                    lng: Math.random() * 120 - 60 
-                };
-                
-                L.circleMarker([coords.lat, coords.lng], {
-                    radius: Math.log(parseFloat(item.Revenue)) * 2,
-                    fillColor: '#CC222B',
-                    color: '#A51C30',
-                    weight: 1,
-                    fillOpacity: 0.8
-                }).bindPopup(`<b>${item.Country}</b><br>Ingresos: $${item.Revenue}M`).addTo(currentMap);
+            // Revenue Contribution Chart
+            new Chart(document.getElementById('revenueContributionChart'), {
+                type: 'bar',
+                data: {
+                    labels: ageGroups,
+                    datasets: genders.map(gender => ({
+                        label: gender,
+                        data: data.demographic
+                            .filter(item => item.Gender === gender)
+                            .map(item => parseFloat(item.RevenueContribution.replace('%', ''))),
+                        backgroundColor: gender === 'Male' ? '#3B82F6' : '#EC4899'
+                    }))
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Contribución (%)'
+                            }
+                        }
+                    }
+                }
             });
         }
 
@@ -371,15 +422,88 @@
             });
         }
 
+        let financialCharts = {
+            stock: null,
+            revenue: null,
+            region: null,
+            productRevenue: null,
+            productMargin: null
+        };
+
         function setupDateFilter(data) {
-            document.getElementById('dateFilter').addEventListener('change', function() {
+            const dateFilter = document.getElementById('dateFilter');
+            
+            // Remove existing event listener if any
+            const newDateFilter = dateFilter.cloneNode(true);
+            dateFilter.parentNode.replaceChild(newDateFilter, dateFilter);
+            
+            newDateFilter.addEventListener('change', function() {
                 const selectedDate = this.value;
                 if (selectedDate === 'all') {
-                    renderDashboards(data);
+                    updateCharts(data.financial);
                 } else {
-                    const filteredData = JSON.parse(JSON.stringify(data));
-                    filteredData.financial = data.financial.filter(item => item.Date === selectedDate);
-                    renderDashboards(filteredData);
+                    const filteredData = data.financial.filter(item => item.Date === selectedDate);
+                    updateCharts(filteredData);
+                }
+            });
+        }
+
+        function updateCharts(filteredData) {
+            // Update stock chart
+            financialCharts.stock.data.labels = filteredData.map(item => item.Date);
+            financialCharts.stock.data.datasets[0].data = filteredData.map(item => item.StockPrice);
+            financialCharts.stock.update();
+
+            // Update revenue chart
+            financialCharts.revenue.data.labels = filteredData.map(item => item.Date);
+            financialCharts.revenue.data.datasets[0].data = filteredData.map(item => item.Revenue);
+            financialCharts.revenue.update();
+        }
+
+        function createFinancialCharts(data) {
+            // Stock Price Chart
+            financialCharts.stock = new Chart(document.getElementById('stockChart'), {
+                type: 'line',
+                data: {
+                    labels: data.financial.map(item => item.Date),
+                    datasets: [{
+                        label: 'Precio ($)',
+                        data: data.financial.map(item => item.StockPrice),
+                        borderColor: '#CC222B',
+                        backgroundColor: 'rgba(204, 34, 43, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1
+                    }]
+                }
+            });
+
+            // Revenue Chart
+            financialCharts.revenue = new Chart(document.getElementById('revenueChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.financial.map(item => item.Date),
+                    datasets: [{
+                        label: 'Ingresos ($B)',
+                        data: data.financial.map(item => item.Revenue),
+                        backgroundColor: 'rgba(204, 34, 43, 0.6)',
+                        borderColor: '#A51C30',
+                        borderWidth: 1
+                    }]
+                }
+            });
+
+            // Region Distribution Chart
+            financialCharts.region = new Chart(document.getElementById('regionChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: data.geographic.map(item => item.Region),
+                    datasets: [{
+                        data: data.geographic.map(item => item.Revenue),
+                        backgroundColor: [
+                            '#3B82F6', '#10B981', '#F59E0B', '#EF4444',
+                            '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'
+                        ]
+                    }]
                 }
             });
         }
